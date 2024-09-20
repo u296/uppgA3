@@ -53,10 +53,13 @@ t_cutoff_i = index_of_nearest(t, t_cutoff_f)
 trimmed_t = t[t_cutoff_i:]
 trimmed_z1 = z1[t_cutoff_i:]
 
+N = len(trimmed_t)
+print(f"N = {N}")
+
 
 freq, amplitude = fourier_transform(trimmed_t, trimmed_z1, samplerate)
 
-amplitude = np.abs(amplitude) / len(trimmed_t)
+amplitude = np.real(amplitude)
 
 while True:
     fig, axs = plt.subplots(1,2)
@@ -71,8 +74,8 @@ while True:
     axs[1].set_ylabel("position [m]")
     plt.show()
 
-    xstart_f = float(input("freq integration start:"))
-    xstop_f = float(input("freq integration stop:"))
+    xstart_f = float(input("freq band start:"))
+    xstop_f = float(input("freq band stop:"))
 
 
     start_i = index_of_nearest(freq, xstart_f)
@@ -87,43 +90,14 @@ while True:
 
     # find midpoint
 
-    midpoint = 0.5 * (xvals[0] + xvals[-1]) 
+    midpoint = np.average(xvals, weights=np.abs(yvals))
 
-
-
-    pivot_down = xvals[0]
-    pivot_up = xvals[-1]
-
-
-    
-        
-
-
-    for _ in range(100):
-
-        lower = integrate_approx(xvals, np.abs(yvals), xvals[0], midpoint)
-        upper = integrate_approx(xvals, np.abs(yvals), midpoint, xvals[-1])
-
-        #print(f"lower = {lower:.3f} upper = {upper:.3f}")
-        #print(f"midpoint = {midpoint}")
-        
-        if abs(lower - upper) < 0.001 * abs(lower):
-            break
-
-        if lower < upper:
-            print("+")
-            pivot_down = midpoint
-            midpoint = 0.5 * (midpoint + pivot_up)
-        else: 
-            print("-")
-            pivot_up = midpoint
-            midpoint = 0.5 * (midpoint + pivot_down)
-
-        
-    amp = integrate_approx(freq, amplitude, xstart_f, xstop_f)
+    amp = np.sum(yvals)
+    absamp = np.sum(np.abs(yvals))
 
     print(f"frequency = {midpoint}")
     print(f"amplitude = {amp}")
+    print(f"absolute amplitude = {absamp}")
 
     plt.plot(xvals, np.abs(yvals))
     plt.plot(xvals, yvals)
