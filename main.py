@@ -3,13 +3,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-path = "data/rig1_measure3.tsv"
-names = ["frame", "time", "x1", "y1", "z1", "x2", "y2", "z2"]
+path = "data/rig3_measure2.tsv"
+spring_names = ["frame", "time", "x1", "y1", "z1", "x2", "y2", "z2"]
+pendulum_names = ["frame", "time", "x", "y", "z"]
 
-df = pd.read_csv(path, sep="\t", skiprows=11, names=names)
+df = pd.read_csv(path, sep="\t", skiprows=11, names=spring_names)
 
 t = df["time"].to_numpy()
-z1 = df["z2"].to_numpy()
+z1 = df["z1"].to_numpy()
 samplerate = 100.0
 
 z1 /= 1000.0 # have units in meters
