@@ -2,7 +2,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("/Users/todd/Downloads/rig3_measure6.tsv", sep="\t")
+
+path = "data/rig1_measure3.tsv"
+names = ["frame", "time", "x1", "y1", "z1", "x2", "y2", "z2"]
+
+df = pd.read_csv(path, sep="\t", skiprows=11, names=names)
 
 t = df["time"].to_numpy()
 z1 = df["z2"].to_numpy()
@@ -59,19 +63,25 @@ print(f"N = {N}")
 
 freq, amplitude = fourier_transform(trimmed_t, trimmed_z1, samplerate)
 
-amplitude = np.real(amplitude)
+real_amplitude = np.real(amplitude)
+imag_amplitude = np.imag(amplitude)
+abs_amplitude = np.abs(amplitude)
 
 while True:
     fig, axs = plt.subplots(1,2)
 
-    axs[0].plot(freq, amplitude, ".-")
+    axs[0].plot(freq, real_amplitude, ".-", label="real amplitude (cos alignment)")
+    axs[0].plot(freq, imag_amplitude, ".-", label="imag amplitude (sin alignment)")
+    axs[0].plot(freq, abs_amplitude, ".-", label="abs amplitude")
     axs[0].plot(np.array([min(freq), max(freq)]), np.array([0.0, 0.0]), "--k")
     axs[0].set_xlabel("frequency [Hz]")
     axs[0].set_ylabel("amplitude [m]")
+    axs[0].legend()
 
     axs[1].plot(t, z1)
     axs[1].set_xlabel("time [s]")
     axs[1].set_ylabel("position [m]")
+    fig.legend()
     plt.show()
 
     xstart_f = float(input("freq band start:"))
@@ -85,22 +95,37 @@ while True:
     print(f"nearest stop: index = {stop_i} val = {freq[stop_i]}")
 
 
-    xvals = freq[start_i:stop_i]
-    yvals = amplitude[start_i:stop_i]
+    freqs = freq[start_i:stop_i]
+    real_amplitudes = real_amplitude[start_i:stop_i]
+    imag_amplitudes = imag_amplitude[start_i:stop_i]
 
     # find midpoint
 
-    midpoint = np.average(xvals, weights=np.abs(yvals))
+    real_midpoint_freq = np.average(freqs, weights=np.abs(real_amplitudes))
+    imag_midpoint_freq = np.average(freqs, weights=np.abs(imag_amplitudes))
 
-    amp = np.sum(yvals)
-    absamp = np.sum(np.abs(yvals))
+    realamp = np.sum(real_amplitudes)
+    abs_realamp = np.sum(np.abs(real_amplitudes))
 
-    print(f"frequency = {midpoint}")
-    print(f"amplitude = {amp}")
-    print(f"absolute amplitude = {absamp}")
+    imagamp = np.sum(imag_amplitudes)
+    abs_imagamp = np.sum(np.abs(imag_amplitudes))
 
-    plt.plot(xvals, np.abs(yvals))
-    plt.plot(xvals, yvals)
-    plt.plot([midpoint, midpoint], [-max(abs(yvals)), max(abs(yvals))*1.1], ":k")
+    print(f"(cos)frequency = {real_midpoint_freq}")
+    print(f"(cos)real_amplitude = {realamp}")
+    print(f"(cos)absolute real_amplitude = {abs_realamp}")
+
+    print(f"(sin)frequency = {imag_midpoint_freq}")
+    print(f"(sin)imag_amplitude = {imagamp}")
+    print(f"(sin)absolute imag_amplitude = {abs_imagamp}")
+
+    plt.plot(freqs, np.abs(real_amplitudes), label="absolute real amplitude")
+    plt.plot(freqs, real_amplitudes, label = "real amplitude")
+    plt.plot([real_midpoint_freq, real_midpoint_freq], [-max(abs(real_amplitudes)), max(abs(real_amplitudes))*1.1], ":k")
+
+    plt.plot(freqs, np.abs(imag_amplitudes), label="absolute imag amplitude")
+    plt.plot(freqs, imag_amplitudes, label = "imag amplitude")
+    plt.plot([imag_midpoint_freq, imag_midpoint_freq], [-max(abs(imag_amplitudes)), max(abs(imag_amplitudes))*1.1], ":k")
+
+    plt.legend()
 
     plt.show()
