@@ -16,6 +16,19 @@ samplerate = 100.0
 z1 /= 1000.0 # have units in meters
 
 
+def cleanup_pendulum(points):
+    n_points = points.shape[0]
+    ones = np.ones(n_points)
+    zeros = np.zeros(n_points)
+    A = np.concatenate(points, ones, axis=1)
+
+    plane = np.linalg.lstsq(A, zeros)
+    plane_normal = plane[0:2]
+
+    print(plane_normal)
+
+
+
 
 def fourier_transform(t, x, samplerate):
     fourier = np.fft.rfft(x)
