@@ -3,32 +3,45 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-path = "data/rig3_measure2.tsv"
+path = "data/pendulum3.tsv"
 spring_names = ["frame", "time", "x1", "y1", "z1", "x2", "y2", "z2"]
 pendulum_names = ["frame", "time", "x", "y", "z"]
 
-df = pd.read_csv(path, sep="\t", skiprows=11, names=spring_names)
+df = pd.read_csv(path, sep="\t", skiprows=11, names=pendulum_names)
 
-t = df["time"].to_numpy()
-z1 = df["z1"].to_numpy()
 samplerate = 100.0
+t = df["time"].to_numpy()
 
-z1 /= 1000.0 # have units in meters
+#z1 = df["z1"].to_numpy()
 
+
+#z1 /= 1000.0 # have units in meters
+
+points = df[["x", "y", "z"]].to_numpy() / 1000.0
+
+print(points)
 
 def cleanup_pendulum(points):
     n_points = points.shape[0]
-    ones = np.ones(n_points)
-    zeros = np.zeros(n_points)
-    A = np.concatenate(points, ones, axis=1)
+    ones = np.transpose(np.array([np.ones(n_points)]))
+    zeros = np.transpose(np.zeros(n_points))
+    A = np.concatenate((points, ones), axis=1)
 
-    plane = np.linalg.lstsq(A, zeros)
-    plane_normal = plane[0:2]
+    print("AAAAAAAAAAAAAAAAAAA")
+    print(A)
+    print("chatgpt solution:")
+    U, S, Vt = np.linalg.svd(A)
 
-    print(plane_normal)
+    x_non_trivial = Vt.T[:, -1]
 
+    x_non_trivial /= np.linalg.norm(x_non_trivial)
 
+    print("Non-trivial solution x:", x_non_trivial)
 
+    # ax + by + cz - d = 0 for a,b,c,d = x_non_trivial
+
+cleanup_pendulum(points)
+raise 3
 
 def fourier_transform(t, x, samplerate):
     fourier = np.fft.rfft(x)
