@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-path = "data/pendulum3.tsv"
+path = "data/pendulum5.tsv"
 spring_names = ["frame", "time", "x1", "y1", "z1", "x2", "y2", "z2"]
 pendulum_names = ["frame", "time", "x", "y", "z"]
 
@@ -12,10 +12,8 @@ df = pd.read_csv(path, sep="\t", skiprows=11, names=pendulum_names)
 samplerate = 100.0
 t = df["time"].to_numpy()
 
-#z1 = df["z1"].to_numpy()
+#z1 = df["z1"].to_numpy() / 1000.0
 
-
-#z1 /= 1000.0 # have units in meters
 
 points = df[["x", "y", "z"]].to_numpy() / 1000.0
 
@@ -34,11 +32,41 @@ def cleanup_pendulum(points):
 
     x_non_trivial = Vt.T[:, -1]
 
-    x_non_trivial /= np.linalg.norm(x_non_trivial)
+    x_non_trivial /= np.linalg.norm(x_non_trivial[0:3])
+
+    normal = x_non_trivial[0:3]
+    offset = x_non_trivial[3]
 
     print("Non-trivial solution x:", x_non_trivial)
 
-    # ax + by + cz - d = 0 for a,b,c,d = x_non_trivial
+    print("add to points: ", normal * offset)
+    points_through_origin = points + normal * offset
+
+    print("points through origin:")
+    print(points_through_origin)
+
+    print("minmax y: ")
+
+    e1 = np.array([1.0,0.0,0.0])
+
+    planetangent = np.cross(e1, normal)
+    planecotangent = np.cross(planetangent, normal)
+
+    print("normal", normal)
+    print("tangent", planetangent)
+    print("cotangent", planecotangent)
+
+    M = np.linalg.inv(np.concatenate(([normal], [planetangent], [planecotangent]), axis=0))
+    print("M", M)
+    print("det M", np.linalg.det(M))
+
+    print("points shape", points.shape)
+
+    rotated_points = np.transpose(M @ np.transpose(points_through_origin))
+
+    print("rotated points: ", rotated_points)
+
+
 
 cleanup_pendulum(points)
 raise 3
@@ -97,18 +125,18 @@ abs_amplitude = np.abs(amplitude)
 while True:
     fig, axs = plt.subplots(1,2)
 
-    axs[0].plot(freq, real_amplitude, ".-", label="real amplitude (cos alignment)")
-    axs[0].plot(freq, imag_amplitude, ".-", label="imag amplitude (sin alignment)")
-    axs[0].plot(freq, abs_amplitude, ".-", label="abs amplitude")
+    axs[0].plot(freq, real_amplitude, ".-", label="cos amplitud")
+    axs[0].plot(freq, imag_amplitude, ".-", label="sin amplitud")
+    axs[0].plot(freq, abs_amplitude, ".-", label="abs amplitud")
     axs[0].plot(np.array([min(freq), max(freq)]), np.array([0.0, 0.0]), "--k")
-    axs[0].set_xlabel("frequency [Hz]")
-    axs[0].set_ylabel("amplitude [m]")
+    axs[0].set_xlabel("frekvens [Hz]")
+    axs[0].set_ylabel("amplitud [m]")
     axs[0].legend()
 
     axs[1].plot(t, z1)
-    axs[1].set_xlabel("time [s]")
+    axs[1].set_xlabel("tid [s]")
     axs[1].set_ylabel("position [m]")
-    fig.legend()
+    #fig.legend()
     plt.show()
 
     xstart_f = float(input("freq band start:"))
