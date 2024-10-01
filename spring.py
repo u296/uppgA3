@@ -47,8 +47,8 @@ freq = np.fft.rfftfreq(len(trimmed_t), 1.0/samplerate)
 
 
 
-z1absamp = np.abs(z1amp)
-z2absamp = np.abs(z2amp)
+z1absamp = np.abs(1000.0 * z1amp / N)
+z2absamp = np.abs(1000.0 * z2amp / N)
 
 fig, axs = plt.subplots(1,2)
 
@@ -56,7 +56,7 @@ axs[0].plot(freq, z1absamp, ".-", label="$z_1$ abs amplitud")
 axs[0].plot(freq, z2absamp, ".-", label="$z_2$ abs amplitud")
 axs[0].plot(np.array([min(freq), max(freq)]), np.array([0.0, 0.0]), "--k")
 axs[0].set_xlabel("frekvens [Hz]")
-axs[0].set_ylabel("amplitud [m]")
+axs[0].set_ylabel("amplitud [mm]")
 axs[0].legend()
 
 axs[1].plot(t, z1)
