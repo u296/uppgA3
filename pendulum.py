@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-path = "data/pendulum5.tsv"
+path = "data/pendulum2.tsv"
 spring_names = ["frame", "time", "x1", "y1", "z1", "x2", "y2", "z2"]
 pendulum_names = ["frame", "time", "x", "y", "z"]
 
@@ -11,13 +11,11 @@ df = pd.read_csv(path, sep="\t", skiprows=11, names=pendulum_names)
 
 samplerate = 100.0
 t = df["time"].to_numpy()
-
-#z1 = df["z1"].to_numpy() / 1000.0
-
+x = df["x"]
 
 points = df[["x", "y", "z"]].to_numpy() / 1000.0
 
-print(points)
+
 
 def cleanup_pendulum(points):
     n_points = points.shape[0]
@@ -67,10 +65,6 @@ def cleanup_pendulum(points):
     print("rotated points: ", rotated_points)
 
 
-
-cleanup_pendulum(points)
-raise 3
-
 def fourier_transform(t, x, samplerate):
     fourier = np.fft.rfft(x)
     xfourier = np.fft.rfftfreq(len(t), 1.0/samplerate)
@@ -103,84 +97,67 @@ def integrate_approx(xvals, yvals, start_f, stop_f):
 
     return running_total
 
-plt.plot(t, z1)
+plt.plot(t, x)
 plt.show()
 
-t_cutoff_f = float(input("start time for fourier: "))
+t_cutoff_f = float(input("start time for min/max detection: "))
 t_cutoff_i = index_of_nearest(t, t_cutoff_f)
 
-trimmed_t = t[t_cutoff_i:]
-trimmed_z1 = z1[t_cutoff_i:]
+mint = []
+minx = []
 
-N = len(trimmed_t)
-print(f"N = {N}")
+maxt = []
+maxx = []
+
+laststate = 0
+lastvalue = 0.0
+lasttime = 0.0
+
+if x[t_cutoff_i] < x[t_cutoff_i + 1]:
+    laststate = 1
+else:
+    laststate = -1
+
+for i, (time, xval) in enumerate(zip(t[t_cutoff_i:], x[t_cutoff_i:])):
+    if i == 0:
+        lastvalue = xval
+        lasttime = time
+        continue
+
+    if lastvalue < xval:
+        # we are growing
+        if laststate == -1:
+            # we just passed a minima
+            mint.append(lasttime)
+            minx.append(float(lastvalue))
+        laststate = 1
+    elif lastvalue > xval:
+        # we are shrinking
+        if laststate == 1:
+            # we just passed a maxima
+            maxt.append(lasttime)
+            maxx.append(float(lastvalue))
+        laststate = -1
+
+    lastvalue = xval
+    lasttime = time
 
 
-freq, amplitude = fourier_transform(trimmed_t, trimmed_z1, samplerate)
+npmint = np.array(mint)
+npmaxt = np.array(maxt)
 
-real_amplitude = np.real(amplitude)
-imag_amplitude = np.imag(amplitude)
-abs_amplitude = np.abs(amplitude)
+mindist = np.diff(npmint)
+maxdist = np.diff(npmaxt)
 
-while True:
-    fig, axs = plt.subplots(1,2)
+np.set_printoptions(precision=3, suppress=True)
 
-    axs[0].plot(freq, real_amplitude, ".-", label="cos amplitud")
-    axs[0].plot(freq, imag_amplitude, ".-", label="sin amplitud")
-    axs[0].plot(freq, abs_amplitude, ".-", label="abs amplitud")
-    axs[0].plot(np.array([min(freq), max(freq)]), np.array([0.0, 0.0]), "--k")
-    axs[0].set_xlabel("frekvens [Hz]")
-    axs[0].set_ylabel("amplitud [m]")
-    axs[0].legend()
+print("distances between minima")
+print(mindist)
 
-    axs[1].plot(t, z1)
-    axs[1].set_xlabel("tid [s]")
-    axs[1].set_ylabel("position [m]")
-    #fig.legend()
-    plt.show()
+print("distances between maxima")
+print(maxdist)
 
-    xstart_f = float(input("freq band start:"))
-    xstop_f = float(input("freq band stop:"))
-
-
-    start_i = index_of_nearest(freq, xstart_f)
-    stop_i = index_of_nearest(freq, xstop_f)
-
-    print(f"nearest start: index = {start_i} val = {freq[start_i]}")
-    print(f"nearest stop: index = {stop_i} val = {freq[stop_i]}")
-
-
-    freqs = freq[start_i:stop_i]
-    real_amplitudes = real_amplitude[start_i:stop_i]
-    imag_amplitudes = imag_amplitude[start_i:stop_i]
-
-    # find midpoint
-
-    real_midpoint_freq = np.average(freqs, weights=np.abs(real_amplitudes))
-    imag_midpoint_freq = np.average(freqs, weights=np.abs(imag_amplitudes))
-
-    realamp = np.sum(real_amplitudes)
-    abs_realamp = np.sum(np.abs(real_amplitudes))
-
-    imagamp = np.sum(imag_amplitudes)
-    abs_imagamp = np.sum(np.abs(imag_amplitudes))
-
-    print(f"(cos)frequency = {real_midpoint_freq}")
-    print(f"(cos)real_amplitude = {realamp}")
-    print(f"(cos)absolute real_amplitude = {abs_realamp}")
-
-    print(f"(sin)frequency = {imag_midpoint_freq}")
-    print(f"(sin)imag_amplitude = {imagamp}")
-    print(f"(sin)absolute imag_amplitude = {abs_imagamp}")
-
-    plt.plot(freqs, np.abs(real_amplitudes), label="absolute real amplitude")
-    plt.plot(freqs, real_amplitudes, label = "real amplitude")
-    plt.plot([real_midpoint_freq, real_midpoint_freq], [-max(abs(real_amplitudes)), max(abs(real_amplitudes))*1.1], ":k")
-
-    plt.plot(freqs, np.abs(imag_amplitudes), label="absolute imag amplitude")
-    plt.plot(freqs, imag_amplitudes, label = "imag amplitude")
-    plt.plot([imag_midpoint_freq, imag_midpoint_freq], [-max(abs(imag_amplitudes)), max(abs(imag_amplitudes))*1.1], ":k")
-
-    plt.legend()
-
-    plt.show()
+plt.plot(t, x)
+plt.plot(mint, minx, ".")
+plt.plot(maxt, maxx, ".")
+plt.show()
