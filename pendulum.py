@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+g = 9.82 # m/s2
 
+pendulum_base_length = 708 #mm
 path = "data/pendulum2.tsv"
 spring_names = ["frame", "time", "x1", "y1", "z1", "x2", "y2", "z2"]
 pendulum_names = ["frame", "time", "x", "y", "z"]
@@ -90,7 +92,7 @@ def integrate_approx(xvals, yvals, start_f, stop_f):
 
     return running_total
 
-def find_maxima_minima(t, x):
+def find_minima_maxima(t, x):
     mint = []
     minx = []
 
@@ -137,28 +139,79 @@ def find_maxima_minima(t, x):
     maxx = np.array(maxx)
     return (mint, minx, maxt, maxx)
 
-plt.plot(t, x)
-plt.show()
+# returns AVG T, swing angle range
+def process_file(path: str, pendulum_length):
+    df = pd.read_csv(path, sep="\t", skiprows=11, names=pendulum_names)
 
-t_cutoff_f = float(input("start time for min/max detection: "))
-t_cutoff_i = index_of_nearest(t, t_cutoff_f)
+    t = df["time"].to_numpy()
+    x = df["x"].to_numpy()
 
-mint, minx, maxt, maxx = find_maxima_minima(t[t_cutoff_i:], x[t_cutoff_i:])
+    points = df[["x", "y", "z"]].to_numpy()
 
-mindist = np.diff(mint)
-maxdist = np.diff(maxt)
+    
 
-print("distances between minima")
-print(mindist)
+    t_cutoff_f = 1.0#float(input("start time for min/max detection: "))
+    t_cutoff_i = index_of_nearest(t, t_cutoff_f)
 
-print("distances between maxima")
-print(maxdist)
+    mint, minx, maxt, maxx = find_minima_maxima(t[t_cutoff_i:], x[t_cutoff_i:])
 
-average = np.average(np.concatenate((mindist, maxdist)))
+    plt.plot(t, x)
+    plt.plot(mint, minx, ".")
+    plt.plot(maxt, maxx, ".")
+    plt.show()
 
-print(f"AVG = {average}")
+    # compute average period time
 
-plt.plot(t, x)
-plt.plot(mint, minx, ".")
-plt.plot(maxt, maxx, ".")
-plt.show()
+    mindist = np.diff(mint)
+    maxdist = np.diff(maxt)
+
+    averageT = np.average(np.concatenate((mindist, maxdist)))
+
+    # compute the angles
+
+    firstmin_i = index_of_nearest(t, mint[0])
+    firstmax_i = index_of_nearest(t, maxt[0])
+    lastmin_i = index_of_nearest(t, mint[-1])
+    lastmax_i = index_of_nearest(t, maxt[-1])
+    
+
+    initdistance = np.linalg.norm(points[firstmin_i] - points[firstmax_i])
+    initangle = np.degrees(np.arcsin(initdistance / (2.0 * pendulum_length)))
+
+    finaldistance = np.linalg.norm(points[lastmin_i] - points[lastmax_i])
+    finalangle = np.degrees(np.arcsin(finaldistance / (2.0 * pendulum_length)))
+
+    return averageT, (finalangle, initangle) 
+
+
+T = []
+deviation = []
+minangle = []
+maxangle = []
+
+
+use_heavy_series = True
+
+pendulum_length = pendulum_base_length
+
+n = 8 if use_heavy_series else 7
+pendulum_length += 68 if use_heavy_series else 41
+
+expected_period = 2.0 * np.pi * np.sqrt(pendulum_length / (1000.0 * g))
+
+for i in range(1,n):
+    filename = f"data/pendulum{i}_heavy.tsv" if use_heavy_series else f"data/pendulum{i}.tsv"
+    Tl, (minanglel, maxanglel) = process_file(filename, pendulum_length)
+    T.append(Tl)
+    deviation.append(Tl - expected_period)
+    minangle.append(minanglel)
+    maxangle.append(maxanglel)
+
+print("using heavy series" if use_heavy_series else "using normal series")
+print(f"expected period: {expected_period:.3f}")
+
+for (t, d, mina, maxa) in zip(T, deviation, minangle, maxangle):
+    print(f"angle: {mina:.1f} => {maxa:.1f}, period time: {t:.3f}, deviation: {d:.3f}")
+
+
+
