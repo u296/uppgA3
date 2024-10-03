@@ -11,7 +11,7 @@ df = pd.read_csv(path, sep="\t", skiprows=11, names=pendulum_names)
 
 samplerate = 100.0
 t = df["time"].to_numpy()
-x = df["x"]
+x = df["x"].to_numpy()
 
 points = df[["x", "y", "z"]].to_numpy() / 1000.0
 
@@ -64,13 +64,6 @@ def cleanup_pendulum(points):
 
     print("rotated points: ", rotated_points)
 
-
-def fourier_transform(t, x, samplerate):
-    fourier = np.fft.rfft(x)
-    xfourier = np.fft.rfftfreq(len(t), 1.0/samplerate)
-
-    return (xfourier, fourier)
-
 def index_of_nearest(a, val):
     diff = np.abs(a - val)
     return diff.argmin()
@@ -97,65 +90,73 @@ def integrate_approx(xvals, yvals, start_f, stop_f):
 
     return running_total
 
+def find_maxima_minima(t, x):
+    mint = []
+    minx = []
+
+    maxt = []
+    maxx = []
+
+    laststate = 0
+    lastvalue = 0.0
+    lasttime = 0.0
+
+    if x[0] < x[1]:
+        laststate = 1
+    else:
+        laststate = -1
+
+    for i, (time, xval) in enumerate(zip(t, x)):
+        if i == 0:
+            lastvalue = xval
+            lasttime = time
+            continue
+
+        if lastvalue < xval:
+            # we are growing
+            if laststate == -1:
+                # we just passed a minima
+                mint.append(lasttime)
+                minx.append(lastvalue)
+            laststate = 1
+        elif lastvalue > xval:
+            # we are shrinking
+            if laststate == 1:
+                # we just passed a maxima
+                maxt.append(lasttime)
+                maxx.append(lastvalue)
+            laststate = -1
+
+        lastvalue = xval
+        lasttime = time
+
+
+    mint = np.array(mint)
+    maxt = np.array(maxt)
+    minx = np.array(minx)
+    maxx = np.array(maxx)
+    return (mint, minx, maxt, maxx)
+
 plt.plot(t, x)
 plt.show()
 
 t_cutoff_f = float(input("start time for min/max detection: "))
 t_cutoff_i = index_of_nearest(t, t_cutoff_f)
 
-mint = []
-minx = []
+mint, minx, maxt, maxx = find_maxima_minima(t[t_cutoff_i:], x[t_cutoff_i:])
 
-maxt = []
-maxx = []
-
-laststate = 0
-lastvalue = 0.0
-lasttime = 0.0
-
-if x[t_cutoff_i] < x[t_cutoff_i + 1]:
-    laststate = 1
-else:
-    laststate = -1
-
-for i, (time, xval) in enumerate(zip(t[t_cutoff_i:], x[t_cutoff_i:])):
-    if i == 0:
-        lastvalue = xval
-        lasttime = time
-        continue
-
-    if lastvalue < xval:
-        # we are growing
-        if laststate == -1:
-            # we just passed a minima
-            mint.append(lasttime)
-            minx.append(float(lastvalue))
-        laststate = 1
-    elif lastvalue > xval:
-        # we are shrinking
-        if laststate == 1:
-            # we just passed a maxima
-            maxt.append(lasttime)
-            maxx.append(float(lastvalue))
-        laststate = -1
-
-    lastvalue = xval
-    lasttime = time
-
-
-npmint = np.array(mint)
-npmaxt = np.array(maxt)
-
-mindist = np.diff(npmint)
-maxdist = np.diff(npmaxt)
-
-np.set_printoptions(precision=3, suppress=True)
+mindist = np.diff(mint)
+maxdist = np.diff(maxt)
 
 print("distances between minima")
 print(mindist)
 
 print("distances between maxima")
 print(maxdist)
+
+average = np.average(np.concatenate((mindist, maxdist)))
+
+print(f"AVG = {average}")
 
 plt.plot(t, x)
 plt.plot(mint, minx, ".")
